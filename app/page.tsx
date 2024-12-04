@@ -1,101 +1,373 @@
-import Image from "next/image";
+"use client"
+import React, {useState, useEffect, useCallback} from 'react'
+import axios from 'axios';
+import { FileCsv } from "@/types";
+import { format } from 'date-fns';
+import Papa from 'papaparse';
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+function Home() {
+   
+  const [file, setFile] = useState<File | null>(null);
+  const [csvData, setCsvData] = useState<string[][]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [successAlert, setSuccessAlert] = useState(false);
+  const [failAlert, setFailAlert] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  const [files, setFiles] = useState<FileCsv[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingTable, setTableLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [progressValue, setProgressValue] = useState<number>(0);
+
+   
+
+  const MAX_FILE_SIZE = 500 * 1024 * 1024;
+
+
+  const fetchFiles = useCallback(async () => {
+    try {
+    
+      setProgressValue(0)
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BACKEND_SERVICE}files/allFiles`);
+      if (Array.isArray(response.data)) {
+
+        
+        setFiles(response.data);
+        
+      } else {
+        throw new Error(" Unexpected response format");
+      }
+    } catch (error) {
+      console.log(error);
+      setError("Failed to fetch stored Files");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFiles();
+  }, [fetchFiles]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProgressValue(0)
+    if (!file) return;
+    if (file.size > MAX_FILE_SIZE) {
+   
+      alert("File too large :(  ");
+      return;
+    }
+    setIsUploading(true);
+
+    const File = file;
+    const chunk_size = 0.15 * 1024 * 1024; // Chunk size set to 0.15 MB
+    let offset = 0;
+    let chunk_number = 0;
+
+    while (offset < File?.size) {
+
+      const chunk = file.slice(offset, offset + chunk_size);
+
+        // Create a blob from the chunk
+        const chunk_blob = new Blob([chunk], { type: File.type });
+
+        // Create a FormData object to send chunk data
+        const formData = new FormData();
+        formData.append("file", chunk_blob);
+        formData.append("fileName", File.name);
+        formData.append("chunkNumber", String(chunk_number));
+        const chunkSize = Math.ceil(File?.size / chunk_size)
+        formData.append(
+          "totalChunks",
+          String(chunkSize)
+        );
+
+       
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_BACKEND_SERVICE}upload/`, formData);
+        if (response.status == 200){
+          setProgressValue(Math.ceil((chunk_number/chunkSize)*100))
+          if (response.data.progress == "done"){
+            setProgressValue(100)
+            setIsUploading(false);
+            setSuccessAlert(true);
+          }
+
+         
+        }else{
+          setIsUploading(false);
+          setFailAlert(true);
+        }
+
+    
+        offset += chunk_size;
+        chunk_number += 1;
+      
+    }
+    
+
+    setIsUploading(false);
+
+    
+  };
+
+
+
+
+  const handleDownload = async (fileId: string, preview: boolean) => {
+    try {
+ 
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BACKEND_SERVICE}files/getFile`,  {
+        params: {
+          fileId : fileId
+        }
+    });
+      const downloadUrl = response.data.result;
+
+      const fileResponse = await axios.get(downloadUrl, {
+        responseType: 'blob',
+      });
+
+      if (preview) {
+
+
+ 
+
+        setTableLoading(true)
+        Papa.parse(downloadUrl, {
+          download: true,
+          
+          complete: (result) => {
+            setCsvData(result.data as string[][]); 
+            setTableLoading(false)
+          },
+          error: (err) => {
+            console.error('Error parsing CSV:', err);
+            setTableLoading(false)
+          },
+        });
+        return null
+      }
+
+      const url = window.URL.createObjectURL(fileResponse.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', (fileId).slice((fileId).indexOf('_') + 1)); 
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+    } catch (error) {
+      console.error('Download failed', error);
+    }
+  };
+
+
+  
+  function bytesToSize(bytes: number): string {
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  
+    if (bytes === 0) {
+      return 'n/a';
+    }
+  
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+  }
+
+
+   
+    return (
+      <>
+      <div className="container mx-auto p-4">
+        <h1 className="text-2xl font-bold mb-4">🚀 fast minio upload 📂</h1>
+        <form onSubmit={handleSubmit} className="space-y-4">
+        
+         
+          <div>
+            <label className="label">
+              <span className="label-text">provide CSV File to store</span>
+            </label>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="file-input file-input-bordered w-full"
+              required
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </div>
+          <div>
+
+
+          <progress className="progress progress-primary w-56" value={progressValue} max="100"   > </progress> 
+           {"               "}{progressValue}% 
+          </div>
+      
+          
+            
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={isUploading}
           >
-            Read our docs
-          </a>
+            {isUploading ? "⏳ Uploading..." : "🚀 Upload File"}
+          </button>
+        </form>
+  
+        {successAlert && (
+          <div className="toast toast-center">
+            <div className="alert alert-success">
+              <span>file uploaded successfull !!</span>
+            </div>
+          </div>
+        )}
+  
+        {failAlert && (
+          <div className="toast toast-center">
+            <div className="alert alert-info">
+              <span>Failed to upload file; contact admin.</span>
+            </div>
+          </div>
+        )}
+
+
+<div className="container mx-auto p-4">
+
+
+<h1 className="text-2xl font-bold">
+  CSV files on Storage
+{"   "}
+<button className="btn mt-15" onClick={fetchFiles}>
+
+  {loading ? (<span className="loading loading-spinner"></span>) :   "refresh"}
+</button>
+  
+  </h1> 
+
+
+{files.length === 0 && loading ? (
+  <div className="text-center text-lg text-gray-500">
+    No CSV files available, start uploading now
+  </div>
+) : (
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    {files.map((file) => (
+    <div className="card bg-secondary text-primary-content w-96" 
+    key={file.file_id}
+    >
+    <div className="card-body">
+      <h2 className="card-title">{(file.filename).slice((file.filename).indexOf('_') + 1)}</h2>
+      <p>{bytesToSize(file.file_size)}</p>
+
+      <p>{format(new Date(file.uploaded_at), "do MMM yyyy, h:mm a")}</p>
+      
+      <div className="card-actions justify-end pt-5">
+      <button className="btn" 
+      
+   
+      
+      onClick={()=>{(document.getElementById('my_modal_2') as HTMLDialogElement).showModal();
+
+
+        handleDownload(file.filename, true);
+
+      }
+
+      }>
+        
+    
+        
+         Preview </button>
+
+         
+        <button className="btn" onClick={() => handleDownload(file.filename, false)}>Download</button>
+      </div>
+
+      <dialog id="my_modal_2" className="modal">
+  <div className="modal-box" data-theme="light">
+    
+ 
+
+    {loadingTable && (<><span className="loading loading-spinner"></span> parsing and loading table... </>)  }
+    <div className="overflow-x-auto">
+    <table className="table table-xs">
+          <thead>
+            {csvData[0] && (
+              <tr>
+                {csvData[0].map((header, index) => (
+                  <th key={index}>{header}</th>
+                ))}
+              </tr>
+            )}
+          </thead>
+          <tbody>
+            {csvData.slice(1).map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                {row.map((cell, cellIndex) => (
+                  <td key={cellIndex}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+
+
+  </div>
+  <form method="dialog" className="modal-backdrop">
+    <button onClick={() => setCsvData([])}>close</button>
+  </form>
+</dialog>
+      
+      
     </div>
-  );
+  </div>
+    ))}
+  </div>
+)}
+
+{error && (
+  <div className="toast toast-center">
+    <div className="alert alert-info">
+      <span>Error loading files from minio; contact admin</span>
+    </div>
+  </div>
+)}
+</div>
+      </div>
+
+
+
+
+
+
+
+
+      <footer className="footer bg-base-800 text-base-content border-base-300 border-t px-10 py-4">
+  <aside className="grid-flow-col items-center">
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+      fillRule="evenodd"
+      clipRule="evenodd"
+      className="fill-current">
+      <path
+        d="M22.672 15.226l-2.432.811.841 2.515c.33 1.019-.209 2.127-1.23 2.456-1.15.325-2.148-.321-2.463-1.226l-.84-2.518-5.013 1.677.84 2.517c.391 1.203-.434 2.542-1.831 2.542-.88 0-1.601-.564-1.86-1.314l-.842-2.516-2.431.809c-1.135.328-2.145-.317-2.463-1.229-.329-1.018.211-2.127 1.231-2.456l2.432-.809-1.621-4.823-2.432.808c-1.355.384-2.558-.59-2.558-1.839 0-.817.509-1.582 1.327-1.846l2.433-.809-.842-2.515c-.33-1.02.211-2.129 1.232-2.458 1.02-.329 2.13.209 2.461 1.229l.842 2.515 5.011-1.677-.839-2.517c-.403-1.238.484-2.553 1.843-2.553.819 0 1.585.509 1.85 1.326l.841 2.517 2.431-.81c1.02-.33 2.131.211 2.461 1.229.332 1.018-.21 2.126-1.23 2.456l-2.433.809 1.622 4.823 2.433-.809c1.242-.401 2.557.484 2.557 1.838 0 .819-.51 1.583-1.328 1.847m-8.992-6.428l-5.01 1.675 1.619 4.828 5.011-1.674-1.62-4.829z"></path>
+    </svg>
+   
+      by <a className="link link-hover" href="https://nalindeepan007.github.io/CVissfolio/">NaliN deepaN </a>
+    
+  </aside>
+  
+</footer>
+
+
+
+</>
+    );
 }
+
+export default Home
