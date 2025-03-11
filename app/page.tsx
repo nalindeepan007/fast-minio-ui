@@ -130,15 +130,19 @@ function Home() {
 
       if (preview) {
 
-
- 
-
+        let tempRow: string[][] = []
         setTableLoading(true)
         Papa.parse(downloadUrl, {
           download: true,
+         
           
-          complete: (result) => {
-            setCsvData(result.data as string[][]); 
+          step: function(result){
+            tempRow.push(result.data as string[])
+           
+          },
+      
+          complete: () => {
+            setCsvData(tempRow as string[][]); 
             setTableLoading(false)
           },
           error: (err) => {
