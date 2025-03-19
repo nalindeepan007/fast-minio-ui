@@ -4,6 +4,7 @@ import axios from 'axios';
 import { FileCsv } from "@/types";
 import { format } from 'date-fns';
 import Papa from 'papaparse';
+import { FixedSizeList as List } from "react-window";
 
 function Home() {
    
@@ -150,6 +151,8 @@ function Home() {
             setTableLoading(false)
           },
         });
+
+
         return null
       }
 
@@ -166,7 +169,41 @@ function Home() {
     }
   };
 
+  // const Row = ({index}: {index: any}) => (
+    
+  //   <tr key={index}>
 
+  //   {/* <td>{csvData[index]}</td> */}
+
+
+  // {csvData[index].map(({cell, cellIndex}: {cell: any, cellIndex: any}) => (
+  //     <td key={cellIndex}>{cell}</td>
+  //   ))} 
+  // </tr>
+  // )
+  const Row = ({ index, style }: { index: number, style: any }) => {
+    
+              if (!csvData[index]) return null;
+
+
+              return(
+               
+                <div className="drawer-content" style={style}> 
+                  <table className="table table-xs" > 
+                    <tbody>
+
+              <tr key={index}>
+                {csvData.slice(1)[index].map((cellObj, cellIndex) => (
+                  <td  key={cellIndex} >{cellObj}</td>
+                ))}
+              </tr>
+                </tbody>
+                </table>
+                </div>
+
+
+                )
+              };
   
   function bytesToSize(bytes: number): string {
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -293,28 +330,44 @@ function Home() {
  
 
     {loadingTable && (<><span className="loading loading-spinner"></span> parsing and loading table... </>)  }
-    <div className="overflow-x-auto">
-    <table className="table table-xs">
-          <thead>
-            {csvData[0] && (
-              <tr>
-                {csvData[0].map((header, index) => (
-                  <th key={index}>{header}</th>
-                ))}
-              </tr>
-            )}
-          </thead>
-          <tbody>
-            {csvData.slice(1).map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                {row.map((cell, cellIndex) => (
-                  <td key={cellIndex}>{cell}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
+  
+
+
+
+   
+  {!loadingTable && csvData.length > 0 && (
+   
+   <>
+ 
+   <table className="table table-xs" >
+     <thead>
+       <tr>
+         {csvData[0] && csvData[0].map((header, index) => (
+           <th key={index}>{header}</th>
+          ))}
+       </tr>
+     </thead>
+   </table>
+          
+   
+   {/* Virtualized body */}
+   
+     <List
+       height={1800}
+       itemCount={csvData.length > 1 ? csvData.length - 1 : 0}
+       itemSize={35}
+       width={1700}
+     >
+       {Row}
+     </List>
+   
+ </> 
+
+
+  )}
+
+    
+   
 
 
 
