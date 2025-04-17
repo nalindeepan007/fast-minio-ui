@@ -135,6 +135,8 @@ function Home() {
         setTableLoading(true)
         Papa.parse(downloadUrl, {
           download: true,
+          
+      
          
           
           step: function(result){
@@ -169,18 +171,7 @@ function Home() {
     }
   };
 
-  // const Row = ({index}: {index: any}) => (
-    
-  //   <tr key={index}>
-
-  //   {/* <td>{csvData[index]}</td> */}
-
-
-  // {csvData[index].map(({cell, cellIndex}: {cell: any, cellIndex: any}) => (
-  //     <td key={cellIndex}>{cell}</td>
-  //   ))} 
-  // </tr>
-  // )
+ 
   const Row = ({ index, style }: { index: number, style: any }) => {
     
               if (!csvData[index]) return null;
@@ -188,15 +179,16 @@ function Home() {
 
               return(
                
-                <div className="drawer-content" style={style}> 
-                  <table className="table table-xs" > 
+                <div className="overflow-x-auto rounded-box border border-base-content/5 bg-base-100" style={style}> 
+                  <table className="table-sm" > 
                     <tbody>
 
               <tr key={index}>
-                {csvData.slice(1)[index].map((cellObj, cellIndex) => (
-                  <td  key={cellIndex} >{cellObj}</td>
+                {csvData[index].map((cellObj, cellIndex) => (
+                  <td key={cellIndex} className="min-w-[15rem] max-w-[15rem] whitespace-normal">{cellObj} </td>
                 ))}
               </tr>
+             
                 </tbody>
                 </table>
                 </div>
@@ -205,6 +197,11 @@ function Home() {
                 )
               };
   
+
+            
+const getItemSize = () => Math.floor(Math.random() * 10) + 90;;
+
+
   function bytesToSize(bytes: number): string {
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   
@@ -325,7 +322,7 @@ function Home() {
       </div>
 
       <dialog id="my_modal_2" className="modal">
-  <div className="modal-box" data-theme="light">
+  <div className="modal-box max-w-7xl" data-theme="light">
     
  
 
@@ -338,30 +335,19 @@ function Home() {
   {!loadingTable && csvData.length > 0 && (
    
    <>
- 
-   <table className="table table-xs" >
-     <thead>
-       <tr>
-         {csvData[0] && csvData[0].map((header, index) => (
-           <th key={index}>{header}</th>
-          ))}
-       </tr>
-     </thead>
-   </table>
-          
-   
-   {/* Virtualized body */}
-   
+<div className="overflow-x-auto">
+
      <List
        height={1800}
        itemCount={csvData.length > 1 ? csvData.length - 1 : 0}
-       itemSize={35}
-       width={1700}
+    
+      itemSize={60}
+      width={3000}
      >
        {Row}
      </List>
    
- </> 
+ </div></>
 
 
   )}
