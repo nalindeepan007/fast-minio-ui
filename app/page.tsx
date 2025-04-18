@@ -10,6 +10,7 @@ function Home() {
    
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<string[][]>([]);
+  const [tableWidth, setTableWidth] = useState<number>(5)
   const [isUploading, setIsUploading] = useState(false);
   const [successAlert, setSuccessAlert] = useState(false);
   const [failAlert, setFailAlert] = useState(false);
@@ -112,7 +113,7 @@ function Home() {
     
   };
 
-
+  
 
 
   const handleDownload = async (fileId: string, preview: boolean) => {
@@ -147,6 +148,7 @@ function Home() {
           complete: () => {
             setCsvData(tempRow as string[][]); 
             setTableLoading(false)
+            setTableWidth(tempRow[0].length)
           },
           error: (err) => {
             console.error('Error parsing CSV:', err);
@@ -175,7 +177,7 @@ function Home() {
   const Row = ({ index, style }: { index: number, style: any }) => {
     
               if (!csvData[index]) return null;
-
+           
 
               return(
                
@@ -185,7 +187,7 @@ function Home() {
 
               <tr key={index}>
                 {csvData[index].map((cellObj, cellIndex) => (
-                  <td key={cellIndex} className="min-w-[15rem] max-w-[15rem] whitespace-normal">{cellObj} </td>
+                  <td key={cellIndex} className="min-w-[15rem] max-w-[15rem] whitespace-normal">{cellObj}</td>
                 ))}
               </tr>
              
@@ -199,9 +201,9 @@ function Home() {
   
 
             
-const getItemSize = () => Math.floor(Math.random() * 10) + 90;;
 
 
+  
   function bytesToSize(bytes: number): string {
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   
@@ -322,7 +324,7 @@ const getItemSize = () => Math.floor(Math.random() * 10) + 90;;
       </div>
 
       <dialog id="my_modal_2" className="modal">
-  <div className="modal-box max-w-7xl" data-theme="light">
+  <div className="modal-box flex justify-center max-w-full" data-theme="dark">
     
  
 
@@ -334,20 +336,20 @@ const getItemSize = () => Math.floor(Math.random() * 10) + 90;;
    
   {!loadingTable && csvData.length > 0 && (
    
-   <>
+   
 <div className="overflow-x-auto">
 
      <List
-       height={1800}
+       height={1000}
        itemCount={csvData.length > 1 ? csvData.length - 1 : 0}
     
       itemSize={60}
-      width={3000}
+      width={tableWidth*300}
      >
        {Row}
      </List>
    
- </div></>
+ </div>
 
 
   )}
