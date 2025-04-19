@@ -181,13 +181,14 @@ function Home() {
 
               return(
                
-                <div className="overflow-x-auto rounded-box border border-base-content/5 bg-base-100" style={style}> 
+                <div className="overflow-x-auto rounded-box border border-base-content/5 bg-slate-200" style={style}> 
                   <table className="table-sm" > 
                     <tbody>
 
               <tr key={index}>
                 {csvData[index].map((cellObj, cellIndex) => (
                   <td key={cellIndex} className="min-w-[15rem] max-w-[15rem] whitespace-normal">{cellObj}</td>
+                  
                 ))}
               </tr>
              
@@ -324,7 +325,7 @@ function Home() {
       </div>
 
       <dialog id="my_modal_2" className="modal">
-  <div className="modal-box flex justify-center max-w-full" data-theme="dark">
+  <div className="modal-box bg-slate-300 flex justify-center max-w-full" data-theme="light">
     
  
 
