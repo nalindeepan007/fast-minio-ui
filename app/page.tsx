@@ -187,7 +187,7 @@ function Home() {
 
               <tr key={index}>
                 {csvData[index].map((cellObj, cellIndex) => (
-                  <td key={cellIndex} className="min-w-[15rem] max-w-[15rem] whitespace-normal">{cellObj}</td>
+                  <td key={cellIndex} className="min-w-[15rem] max-w-[15rem] whitespace-normal break-words break-all">{cellObj}</td>
                   
                 ))}
               </tr>
